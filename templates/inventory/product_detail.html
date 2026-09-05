@@ -1,0 +1,172 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Detail Produk: {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Detail Produk</h1>
+        <div class="flex space-x-2">
+            <a href="{% url 'inventory:product_list' %}" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md">
+                <i class="fas fa-arrow-left mr-2"></i> Kembali
+            </a>
+            <a href="{% url 'inventory:product_edit' product.id %}" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md">
+                <i class="fas fa-edit mr-2"></i> Edit
+            </a>
+            <a href="{% url 'inventory:product_barcode' product.id %}" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md">
+                <i class="fas fa-barcode mr-2"></i> Barcode
+            </a>
+            <a href="{% url 'inventory:product_qrcode' product.id %}" class="bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-md">
+                <i class="fas fa-qrcode mr-2"></i> QR Code
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Informasi Produk -->
+        <div class="bg-white shadow-md rounded-md p-6 md:col-span-2">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">Informasi Produk</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-gray-600">Nama Produk</p>
+                    <p class="font-medium">{{ product.name }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Barcode</p>
+                    <p class="font-medium">{{ product.barcode }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Kategori</p>
+                    <p class="font-medium">{{ product.category.name }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Satuan</p>
+                    <p class="font-medium">{{ product.unit }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Harga Beli</p>
+                    <p class="font-medium">Rp {{ product.purchase_price|floatformat:0 }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Harga Jual</p>
+                    <p class="font-medium">Rp {{ product.selling_price|floatformat:0 }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Stok</p>
+                    <p class="font-medium {% if product.stock <= product.min_stock %}text-red-600{% endif %}">
+                        {{ product.stock }} {{ product.unit }}
+                        {% if product.stock <= product.min_stock %}
+                            <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full ml-2">Stok Rendah</span>
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Stok Minimum</p>
+                    <p class="font-medium">{{ product.min_stock }} {{ product.unit }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Status</p>
+                    <p class="font-medium">
+                        {% if product.is_active %}
+                            <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Aktif</span>
+                        {% else %}
+                            <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full">Tidak Aktif</span>
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Tanggal Dibuat</p>
+                    <p class="font-medium">{{ product.created_at|date:"d F Y, H:i" }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Terakhir Diperbarui</p>
+                    <p class="font-medium">{{ product.updated_at|date:"d F Y, H:i" }}</p>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <p class="text-sm text-gray-600">Deskripsi</p>
+                <p class="font-medium">{{ product.description|default:"Tidak ada deskripsi" }}</p>
+            </div>
+        </div>
+        
+        <!-- Gambar Produk -->
+        <div class="bg-white shadow-md rounded-md p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">Gambar Produk</h2>
+            
+            {% if product.image %}
+                <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-auto rounded-md">
+            {% else %}
+                <div class="bg-gray-100 rounded-md p-8 flex items-center justify-center">
+                    <p class="text-gray-500">Tidak ada gambar</p>
+                </div>
+            {% endif %}
+            
+            <div class="mt-4">
+                <h3 class="text-lg font-semibold mb-2 text-gray-800">Barcode</h3>
+                <div class="bg-gray-100 p-4 rounded-md flex justify-center">
+                    <img src="{% url 'inventory:product_barcode_img' product.id %}" alt="Barcode {{ product.barcode }}" class="h-16">
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <h3 class="text-lg font-semibold mb-2 text-gray-800">QR Code</h3>
+                <div class="bg-gray-100 p-4 rounded-md flex justify-center">
+                    <img src="{% url 'inventory:product_qrcode_img' product.id %}" alt="QR Code {{ product.barcode }}" class="h-32 w-32">
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Riwayat Stok -->
+    <div class="mt-6 bg-white shadow-md rounded-md p-6">
+        <h2 class="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">Riwayat Stok</h2>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                    <tr>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipe</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alasan</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Oleh</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for adjustment in stock_adjustments %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ adjustment.created_at|date:"d F Y, H:i" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if adjustment.adjustment_type == 'ADD' %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Penambahan</span>
+                            {% else %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Pengurangan</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ adjustment.quantity }} {{ product.unit }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-500">{{ adjustment.reason }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ adjustment.adjusted_by.get_full_name }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">Tidak ada riwayat penyesuaian stok</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

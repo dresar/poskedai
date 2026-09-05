@@ -1,0 +1,238 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Detail Penjualan: {{ sale.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Detail Penjualan</h1>
+        <div class="flex space-x-2">
+            <a href="{% url 'inventory:sale_list' %}" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md">
+                <i class="fas fa-arrow-left mr-2"></i> Kembali
+            </a>
+            <a href="{% url 'inventory:sale_invoice' sale.id %}" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md">
+                <i class="fas fa-file-invoice mr-2"></i> Invoice
+            </a>
+            {% if sale.payment_status != 'PAID' %}
+            <a href="{% url 'inventory:sale_payment' sale.id %}" class="bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-4 rounded-md">
+                <i class="fas fa-money-bill-wave mr-2"></i> Pembayaran
+            </a>
+            {% endif %}
+            <button onclick="window.print()" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md print:hidden">
+                <i class="fas fa-print mr-2"></i> Cetak
+            </button>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="mb-4 print:hidden">
+        {% for message in messages %}
+        <div class="{{ message.tags }} px-4 py-3 rounded relative{% if message.tags == 'success' %} bg-green-100 border border-green-400 text-green-700{% elif message.tags == 'error' %} bg-red-100 border border-red-400 text-red-700{% else %} bg-blue-100 border border-blue-400 text-blue-700{% endif %}" role="alert">
+            <span class="block sm:inline">{{ message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="bg-white shadow-md rounded-md overflow-hidden mb-6">
+        <div class="p-6">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800 mb-2">{{ sale.invoice_number }}</h2>
+                    <p class="text-gray-600">Tanggal: {{ sale.created_at|date:"d F Y H:i" }}</p>
+                </div>
+                <div class="text-right">
+                    <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full {% if sale.payment_status == 'PAID' %}bg-green-100 text-green-800{% elif sale.payment_status == 'PARTIAL' %}bg-yellow-100 text-yellow-800{% else %}bg-red-100 text-red-800{% endif %}">
+                        {% if sale.payment_status == 'PAID' %}Lunas{% elif sale.payment_status == 'PARTIAL' %}Sebagian{% else %}Belum Dibayar{% endif %}
+                    </span>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">Informasi Pelanggan</h3>
+                    {% if sale.customer %}
+                    <p class="font-medium">{{ sale.customer.name }}</p>
+                    <p class="text-gray-600">{{ sale.customer.phone }}</p>
+                    <p class="text-gray-600">{{ sale.customer.email }}</p>
+                    <p class="text-gray-600">{{ sale.customer.address }}</p>
+                    {% else %}
+                    <p class="text-gray-600">Pelanggan Umum</p>
+                    {% endif %}
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">Informasi Pembayaran</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <p class="text-gray-600">Metode Pembayaran:</p>
+                        <p class="font-medium">
+                            {% if sale.payment_method == 'CASH' %}Tunai
+                            {% elif sale.payment_method == 'TRANSFER' %}Transfer Bank
+                            {% elif sale.payment_method == 'QRIS' %}QRIS
+                            {% elif sale.payment_method == 'CREDIT' %}Kredit
+                            {% endif %}
+                        </p>
+                        
+                        <p class="text-gray-600">Status Pembayaran:</p>
+                        <p class="font-medium">
+                            {% if sale.payment_status == 'PAID' %}Lunas
+                            {% elif sale.payment_status == 'PARTIAL' %}Sebagian
+                            {% else %}Belum Dibayar
+                            {% endif %}
+                        </p>
+                        
+                        <p class="text-gray-600">Jumlah Dibayar:</p>
+                        <p class="font-medium">Rp {{ sale.amount_paid|floatformat:0 }}</p>
+                        
+                        {% if sale.payment_status != 'PAID' %}
+                        <p class="text-gray-600">Sisa Pembayaran:</p>
+                        <p class="font-medium text-red-600">Rp {{ sale.due_amount|floatformat:0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            {% if sale.notes %}
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2 border-b pb-2">Catatan</h3>
+                <p class="text-gray-600">{{ sale.notes }}</p>
+            </div>
+            {% endif %}
+            
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">Item Penjualan</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produk</th>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Harga</th>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Diskon</th>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for item in sale.saleitem_set.all %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ forloop.counter }}</td>
+                                <td class="px-6 py-4">
+                                    <div class="text-sm font-medium text-gray-900">{{ item.product.name }}</div>
+                                    <div class="text-sm text-gray-500">{{ item.product.barcode }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.quantity }} {{ item.product.unit }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rp {{ item.price|floatformat:0 }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rp {{ item.discount|floatformat:0 }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rp {{ item.subtotal|floatformat:0 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="bg-gray-50">
+                                <td colspan="5" class="px-6 py-4 text-right text-sm font-medium text-gray-900">Subtotal:</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Rp {{ sale.subtotal|floatformat:0 }}</td>
+                            </tr>
+                            {% if sale.discount > 0 %}
+                            <tr class="bg-gray-50">
+                                <td colspan="5" class="px-6 py-4 text-right text-sm font-medium text-gray-900">Diskon:</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Rp {{ sale.discount|floatformat:0 }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if sale.tax_amount > 0 %}
+                            <tr class="bg-gray-50">
+                                <td colspan="5" class="px-6 py-4 text-right text-sm font-medium text-gray-900">Pajak ({{ sale.tax_percent }}%):</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Rp {{ sale.tax_amount|floatformat:0 }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr class="bg-gray-50">
+                                <td colspan="5" class="px-6 py-4 text-right text-sm font-medium text-gray-900">Total:</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Rp {{ sale.total_amount|floatformat:0 }}</td>
+                            </tr>
+                            <tr class="bg-gray-50">
+                                <td colspan="5" class="px-6 py-4 text-right text-sm font-medium text-gray-900">Dibayar:</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Rp {{ sale.amount_paid|floatformat:0 }}</td>
+                            </tr>
+                            {% if sale.payment_status != 'PAID' %}
+                            <tr class="bg-gray-50">
+                                <td colspan="5" class="px-6 py-4 text-right text-sm font-medium text-gray-900">Sisa:</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600">Rp {{ sale.due_amount|floatformat:0 }}</td>
+                            </tr>
+                            {% endif %}
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="border-t pt-4">
+                <div class="text-sm text-gray-500">
+                    <p>Dibuat oleh: {{ sale.created_by.get_full_name|default:sale.created_by.username }}</p>
+                    <p>Tanggal: {{ sale.created_at|date:"d F Y H:i" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if sale.payment_set.exists %}
+    <div class="bg-white shadow-md rounded-md overflow-hidden">
+        <div class="px-6 py-4 border-b">
+            <h3 class="text-lg font-semibold text-gray-800">Riwayat Pembayaran</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                    <tr>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metode</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Catatan</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Oleh</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for payment in sale.payment_set.all %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ forloop.counter }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ payment.payment_date|date:"d F Y H:i" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Rp {{ payment.amount|floatformat:0 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {% if payment.payment_method == 'CASH' %}Tunai
+                            {% elif payment.payment_method == 'TRANSFER' %}Transfer Bank
+                            {% elif payment.payment_method == 'QRIS' %}QRIS
+                            {% elif payment.payment_method == 'CREDIT' %}Kredit
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-500">{{ payment.notes|default:"-" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ payment.created_by.get_full_name|default:payment.created_by.username }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style media="print">
+    @page {
+        size: auto;
+        margin: 10mm;
+    }
+    body {
+        background-color: white;
+        font-size: 12pt;
+    }
+    .container {
+        width: 100%;
+        max-width: 100%;
+        padding: 0;
+    }
+    .shadow-md {
+        box-shadow: none !important;
+    }
+    .print\:hidden {
+        display: none !important;
+    }
+</style>
+{% endblock %}

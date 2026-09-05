@@ -1,0 +1,194 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Detail Pembelian: {{ purchase.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Detail Pembelian</h1>
+        <div class="flex space-x-2">
+            <a href="{% url 'inventory:purchase_list' %}" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md">
+                <i class="fas fa-arrow-left mr-2"></i> Kembali
+            </a>
+            <button onclick="window.print()" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md print:hidden">
+                <i class="fas fa-print mr-2"></i> Cetak
+            </button>
+            {% if purchase.status == 'PENDING' %}
+            <a href="{% url 'inventory:purchase_edit' purchase.id %}" class="bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-4 rounded-md print:hidden">
+                <i class="fas fa-edit mr-2"></i> Edit
+            </a>
+            <a href="{% url 'inventory:purchase_receive' purchase.id %}" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md print:hidden">
+                <i class="fas fa-check mr-2"></i> Terima
+            </a>
+            <a href="{% url 'inventory:purchase_cancel' purchase.id %}" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md print:hidden">
+                <i class="fas fa-times mr-2"></i> Batalkan
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="mb-4 print:hidden">
+        {% for message in messages %}
+        <div class="p-4 {% if message.tags == 'success' %}bg-green-100 text-green-700{% elif message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %} rounded-md">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Informasi Pembelian -->
+        <div class="bg-white shadow-md rounded-md p-6 md:col-span-2 print:shadow-none print:border print:border-gray-200">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-xl font-semibold text-gray-800">Informasi Pembelian</h2>
+                <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full {% if purchase.status == 'RECEIVED' %}bg-green-100 text-green-800{% elif purchase.status == 'PENDING' %}bg-yellow-100 text-yellow-800{% else %}bg-red-100 text-red-800{% endif %}">
+                    {{ purchase.get_status_display }}
+                </span>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-gray-600">No. Invoice</p>
+                    <p class="font-medium">{{ purchase.invoice_number }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Tanggal</p>
+                    <p class="font-medium">{{ purchase.invoice_date|date:"d F Y" }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Supplier</p>
+                    <p class="font-medium">{{ purchase.supplier.name }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Kontak Supplier</p>
+                    <p class="font-medium">{{ purchase.supplier.phone }}</p>
+                </div>
+                
+                <div class="md:col-span-2">
+                    <p class="text-sm text-gray-600">Alamat Supplier</p>
+                    <p class="font-medium">{{ purchase.supplier.address|default:"-" }}</p>
+                </div>
+                
+                <div class="md:col-span-2">
+                    <p class="text-sm text-gray-600">Catatan</p>
+                    <p class="font-medium">{{ purchase.notes|default:"-" }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Dibuat Oleh</p>
+                    <p class="font-medium">{{ purchase.created_by.get_full_name }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Tanggal Dibuat</p>
+                    <p class="font-medium">{{ purchase.created_at|date:"d F Y, H:i" }}</p>
+                </div>
+                
+                {% if purchase.status == 'RECEIVED' %}
+                <div>
+                    <p class="text-sm text-gray-600">Diterima Oleh</p>
+                    <p class="font-medium">{{ purchase.received_by.get_full_name }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Tanggal Diterima</p>
+                    <p class="font-medium">{{ purchase.received_at|date:"d F Y, H:i" }}</p>
+                </div>
+                {% endif %}
+                
+                {% if purchase.status == 'CANCELLED' %}
+                <div>
+                    <p class="text-sm text-gray-600">Dibatalkan Oleh</p>
+                    <p class="font-medium">{{ purchase.cancelled_by.get_full_name }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Tanggal Dibatalkan</p>
+                    <p class="font-medium">{{ purchase.cancelled_at|date:"d F Y, H:i" }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Ringkasan Pembelian -->
+        <div class="bg-white shadow-md rounded-md p-6 print:shadow-none print:border print:border-gray-200">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">Ringkasan Pembelian</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <p class="text-sm text-gray-600">Total Item</p>
+                    <p class="text-2xl font-bold">{{ purchase.purchaseitem_set.count }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Total Jumlah</p>
+                    <p class="text-2xl font-bold">{{ total_quantity }}</p>
+                </div>
+                
+                <div>
+                    <p class="text-sm text-gray-600">Total Nilai Pembelian</p>
+                    <p class="text-2xl font-bold">Rp {{ purchase.total_amount|floatformat:0 }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Detail Item -->
+    <div class="mt-6 bg-white shadow-md rounded-md p-6 print:shadow-none print:border print:border-gray-200">
+        <h2 class="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">Detail Item</h2>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                    <tr>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produk</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Harga</th>
+                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for item in purchase.purchaseitem_set.all %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ forloop.counter }}</td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-medium text-gray-900">{{ item.product.name }}</div>
+                            <div class="text-sm text-gray-500">{{ item.product.barcode }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.quantity }} {{ item.product.unit }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rp {{ item.price|floatformat:0 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">Rp {{ item.get_subtotal|floatformat:0 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4" class="px-6 py-4 text-right font-medium">Total:</td>
+                        <td class="px-6 py-4 font-bold">Rp {{ purchase.total_amount|floatformat:0 }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    @media print {
+        body {
+            background-color: white;
+        }
+        .print\:hidden {
+            display: none !important;
+        }
+        .container {
+            max-width: 100%;
+            padding: 0;
+        }
+    }
+</style>
+{% endblock %}

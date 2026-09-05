@@ -1,0 +1,72 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Barcode: {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Barcode Produk</h1>
+        <div class="flex space-x-2">
+            <a href="{% url 'inventory:product_detail' product.id %}" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md">
+                <i class="fas fa-arrow-left mr-2"></i> Kembali
+            </a>
+            <button onclick="window.print()" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md print:hidden">
+                <i class="fas fa-print mr-2"></i> Cetak
+            </button>
+        </div>
+    </div>
+
+    <div class="bg-white shadow-md rounded-md p-6 print:shadow-none print:p-0">
+        <div class="text-center mb-4 print:mb-2">
+            <h2 class="text-xl font-semibold text-gray-800">{{ product.name }}</h2>
+            <p class="text-gray-600">{{ product.barcode }}</p>
+        </div>
+        
+        <div class="flex justify-center mb-6 print:mb-4">
+            <img src="{% url 'inventory:product_barcode_img' product.id %}" alt="Barcode {{ product.barcode }}" class="h-24 print:h-20">
+        </div>
+        
+        <div class="text-center">
+            <p class="text-lg font-bold">Rp {{ product.selling_price|floatformat:0 }}</p>
+        </div>
+    </div>
+    
+    <div class="mt-8 print:mt-4">
+        <h2 class="text-xl font-semibold mb-4 text-gray-800 print:hidden">Label Barcode Multiple</h2>
+        
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 print:gap-2">
+            {% for i in '123456789'|make_list %}
+            <div class="bg-white shadow-md rounded-md p-4 print:shadow-none print:border print:border-gray-200">
+                <div class="text-center mb-2">
+                    <h3 class="text-sm font-semibold text-gray-800">{{ product.name }}</h3>
+                    <p class="text-xs text-gray-600">{{ product.barcode }}</p>
+                </div>
+                
+                <div class="flex justify-center mb-2">
+                    <img src="{% url 'inventory:product_barcode_img' product.id %}" alt="Barcode {{ product.barcode }}" class="h-12">
+                </div>
+                
+                <div class="text-center">
+                    <p class="text-sm font-bold">Rp {{ product.selling_price|floatformat:0 }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<style>
+    @media print {
+        body {
+            background-color: white;
+        }
+        .print\:hidden {
+            display: none !important;
+        }
+        .container {
+            max-width: 100%;
+            padding: 0;
+        }
+    }
+</style>
+{% endblock %}

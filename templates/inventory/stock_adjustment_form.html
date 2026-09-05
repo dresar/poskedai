@@ -1,0 +1,303 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Penyesuaian Stok{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
+<style>
+    .select2-container {
+        width: 100% !important;
+    }
+    .select2-container .select2-selection--single {
+        height: 38px;
+        border-color: #D1D5DB;
+        border-radius: 0.375rem;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 38px;
+        padding-left: 12px;
+        color: #111827;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px;
+    }
+    .select2-dropdown {
+        border-color: #D1D5DB;
+    }
+    .select2-container--default .select2-search--dropdown .select2-search__field {
+        border-color: #D1D5DB;
+        border-radius: 0.375rem;
+        padding: 4px 8px;
+    }
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #2563EB;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold text-gray-800">{% if object %}Edit{% else %}Tambah{% endif %} Penyesuaian Stok</h1>
+        <div>
+            <a href="{% url 'inventory:stock_adjustment_list' %}" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md">
+                <i class="fas fa-arrow-left mr-2"></i> Kembali
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+        <div class="{{ message.tags }} px-4 py-3 rounded relative{% if message.tags == 'success' %} bg-green-100 border border-green-400 text-green-700{% elif message.tags == 'error' %} bg-red-100 border border-red-400 text-red-700{% else %} bg-blue-100 border border-blue-400 text-blue-700{% endif %}" role="alert">
+            <span class="block sm:inline">{{ message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="bg-white shadow-md rounded-md overflow-hidden">
+        <form method="post" class="p-6">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label for="id_product" class="block text-sm font-medium text-gray-700 mb-1">Produk <span class="text-red-600">*</span></label>
+                    <select name="product" id="id_product" class="product-select border border-gray-300 rounded-md w-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required {% if selected_product %}data-selected-product="{{ selected_product.id }}"{% endif %}>
+                        <option value="">-- Pilih Produk --</option>
+                        {% if selected_product %}
+                        <option value="{{ selected_product.id }}" selected>{{ selected_product.name }} ({{ selected_product.barcode }})</option>
+                        {% endif %}
+                    </select>
+                    {% if form.product.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ form.product.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div>
+                    <label for="id_adjustment_type" class="block text-sm font-medium text-gray-700 mb-1">Tipe Penyesuaian <span class="text-red-600">*</span></label>
+                    <select name="adjustment_type" id="id_adjustment_type" class="border border-gray-300 rounded-md w-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                        <option value="ADD" {% if form.adjustment_type.value == 'ADD' %}selected{% endif %}>Penambahan</option>
+                        <option value="SUBTRACT" {% if form.adjustment_type.value == 'SUBTRACT' %}selected{% endif %}>Pengurangan</option>
+                        <option value="SET" {% if form.adjustment_type.value == 'SET' %}selected{% endif %}>Set Nilai Baru</option>
+                    </select>
+                    {% if form.adjustment_type.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ form.adjustment_type.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div>
+                    <label for="id_date" class="block text-sm font-medium text-gray-700 mb-1">Tanggal <span class="text-red-600">*</span></label>
+                    <input type="datetime-local" name="date" id="id_date" value="{% if form.date.value %}{{ form.date.value|date:'Y-m-d\TH:i' }}{% else %}{% now 'Y-m-d\TH:i' %}{% endif %}" class="border border-gray-300 rounded-md w-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                    {% if form.date.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ form.date.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div>
+                    <label for="id_quantity" class="block text-sm font-medium text-gray-700 mb-1">Jumlah <span class="text-red-600">*</span></label>
+                    <div class="flex">
+                        <input type="number" name="quantity" id="id_quantity" value="{{ form.quantity.value|default:'1' }}" min="0.01" step="0.01" class="border border-gray-300 rounded-l-md w-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                        <span id="unit_display" class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500">Unit</span>
+                    </div>
+                    {% if form.quantity.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ form.quantity.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div id="stockInfoContainer" class="{% if not selected_product %}hidden{% endif %}">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Informasi Stok</label>
+                    <div class="border border-gray-300 rounded-md p-3 bg-gray-50">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-sm text-gray-600">Stok Saat Ini:</span>
+                            <span id="current_stock" class="text-sm font-medium">{{ selected_product.stock|default:'0' }} {{ selected_product.unit|default:'Unit' }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Stok Setelah Penyesuaian:</span>
+                            <span id="new_stock" class="text-sm font-medium">{{ selected_product.stock|default:'0' }} {{ selected_product.unit|default:'Unit' }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-6">
+                <label for="id_reason" class="block text-sm font-medium text-gray-700 mb-1">Alasan <span class="text-red-600">*</span></label>
+                <select name="reason" id="id_reason" class="border border-gray-300 rounded-md w-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                    <option value="" {% if not form.reason.value %}selected{% endif %}>-- Pilih Alasan --</option>
+                    <option value="STOCK_COUNT" {% if form.reason.value == 'STOCK_COUNT' %}selected{% endif %}>Penghitungan Stok</option>
+                    <option value="DAMAGED" {% if form.reason.value == 'DAMAGED' %}selected{% endif %}>Barang Rusak</option>
+                    <option value="EXPIRED" {% if form.reason.value == 'EXPIRED' %}selected{% endif %}>Barang Kadaluarsa</option>
+                    <option value="LOST" {% if form.reason.value == 'LOST' %}selected{% endif %}>Barang Hilang</option>
+                    <option value="RETURNED" {% if form.reason.value == 'RETURNED' %}selected{% endif %}>Barang Dikembalikan</option>
+                    <option value="INITIAL" {% if form.reason.value == 'INITIAL' %}selected{% endif %}>Stok Awal</option>
+                    <option value="OTHER" {% if form.reason.value == 'OTHER' %}selected{% endif %}>Lainnya</option>
+                </select>
+                {% if form.reason.errors %}
+                <p class="text-red-500 text-xs mt-1">{{ form.reason.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <div class="mb-6" id="other_reason_container" {% if form.reason.value != 'OTHER' %}style="display: none;"{% endif %}>
+                <label for="id_notes" class="block text-sm font-medium text-gray-700 mb-1">Alasan Lainnya <span class="text-red-600">*</span></label>
+                <textarea name="notes" id="id_notes" rows="3" class="border border-gray-300 rounded-md w-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">{{ form.notes.value|default:'' }}</textarea>
+                {% if form.notes.errors %}
+                <p class="text-red-500 text-xs mt-1">{{ form.notes.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <div class="flex justify-end">
+                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded-md">
+                    <i class="fas fa-save mr-2"></i> Simpan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Select2 for product select
+        $('.product-select').select2({
+            placeholder: "-- Pilih Produk --",
+            allowClear: true,
+            ajax: {
+                url: '{% url "inventory:api_product_search" %}',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        q: params.term || '',
+                        page: params.page || 1
+                    };
+                },
+                processResults: function(data, params) {
+                    params.page = params.page || 1;
+                    return {
+                        results: data.results,
+                        pagination: {
+                            more: data.has_more
+                        }
+                    };
+                },
+                cache: true
+            },
+            templateResult: formatProduct,
+            templateSelection: formatProductSelection
+        });
+        
+        // Format product in dropdown
+        function formatProduct(product) {
+            if (!product.id) return product.text;
+            
+            return $(`
+                <div class="flex justify-between">
+                    <div>
+                        <div class="font-medium">${product.name}</div>
+                        <div class="text-xs text-gray-500">${product.barcode || 'No Barcode'}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-medium">Stok: ${product.stock} ${product.unit}</div>
+                        <div class="text-xs text-gray-500">Rp ${parseFloat(product.selling_price).toLocaleString('id-ID')}</div>
+                    </div>
+                </div>
+            `);
+        }
+        
+        // Format selected product
+        function formatProductSelection(product) {
+            if (!product.id) return product.text;
+            return `${product.name} (${product.barcode || 'No Barcode'})`;
+        }
+        
+        // Handle product selection change
+        $('.product-select').on('select2:select', function(e) {
+            const data = e.params.data;
+            updateProductInfo(data);
+        });
+        
+        // Load selected product data if exists
+        const productSelect = document.getElementById('id_product');
+        if (productSelect.dataset.selectedProduct) {
+            fetch(`{% url 'inventory:api_product_detail' %}?id=${productSelect.dataset.selectedProduct}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.found) {
+                        updateProductInfo(data.product);
+                    }
+                })
+                .catch(error => console.error('Error fetching product details:', error));
+        }
+        
+        // Update product info
+        function updateProductInfo(product) {
+            // Update unit display
+            document.getElementById('unit_display').textContent = product.unit;
+            
+            // Update stock info
+            document.getElementById('current_stock').textContent = `${product.stock} ${product.unit}`;
+            updateNewStock();
+            
+            // Show stock info container
+            document.getElementById('stockInfoContainer').classList.remove('hidden');
+        }
+        
+        // Handle adjustment type and quantity changes
+        document.getElementById('id_adjustment_type').addEventListener('change', updateNewStock);
+        document.getElementById('id_quantity').addEventListener('input', updateNewStock);
+        
+        // Update new stock calculation
+        function updateNewStock() {
+            const productSelect = document.getElementById('id_product');
+            if (!productSelect.value) return;
+            
+            // Get current stock from display
+            const currentStockText = document.getElementById('current_stock').textContent;
+            const currentStock = parseFloat(currentStockText.split(' ')[0]);
+            const unit = currentStockText.split(' ')[1];
+            
+            // Get adjustment type and quantity
+            const adjustmentType = document.getElementById('id_adjustment_type').value;
+            const quantity = parseFloat(document.getElementById('id_quantity').value) || 0;
+            
+            // Calculate new stock
+            let newStock = currentStock;
+            if (adjustmentType === 'ADD') {
+                newStock = currentStock + quantity;
+            } else if (adjustmentType === 'SUBTRACT') {
+                newStock = Math.max(0, currentStock - quantity);
+            } else if (adjustmentType === 'SET') {
+                newStock = quantity;
+            }
+            
+            // Update display
+            document.getElementById('new_stock').textContent = `${newStock.toFixed(2)} ${unit}`;
+            
+            // Highlight if stock will be negative
+            const newStockElement = document.getElementById('new_stock');
+            if (adjustmentType === 'SUBTRACT' && currentStock < quantity) {
+                newStockElement.classList.add('text-red-600');
+            } else {
+                newStockElement.classList.remove('text-red-600');
+            }
+        }
+        
+        // Handle reason change
+        document.getElementById('id_reason').addEventListener('change', function() {
+            const otherReasonContainer = document.getElementById('other_reason_container');
+            if (this.value === 'OTHER') {
+                otherReasonContainer.style.display = 'block';
+                document.getElementById('id_notes').setAttribute('required', 'required');
+            } else {
+                otherReasonContainer.style.display = 'none';
+                document.getElementById('id_notes').removeAttribute('required');
+            }
+        });
+    });
+</script>
+{% endblock %}

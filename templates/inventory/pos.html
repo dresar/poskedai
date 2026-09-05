@@ -1,0 +1,1038 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Point of Sale (POS){% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
+<style>
+    .select2-container {
+        width: 100% !important;
+    }
+    .select2-container .select2-selection--single {
+        height: 38px;
+        border-color: #D1D5DB;
+        border-radius: 0.375rem;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 38px;
+        padding-left: 12px;
+        color: #111827;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px;
+    }
+    .select2-dropdown {
+        border-color: #D1D5DB;
+    }
+    .select2-container--default .select2-search--dropdown .select2-search__field {
+        border-color: #D1D5DB;
+        border-radius: 0.375rem;
+        padding: 4px 8px;
+    }
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #2563EB;
+    }
+    
+    /* POS specific styles */
+    .pos-container {
+        height: calc(100vh - 80px);
+        overflow: hidden;
+    }
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+        overflow-y: auto;
+        max-height: calc(100vh - 250px);
+        padding: 10px;
+    }
+    .product-card {
+        border: 1px solid #E5E7EB;
+        border-radius: 0.375rem;
+        padding: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .product-card:hover {
+        border-color: #3B82F6;
+        box-shadow: 0 0 0 1px #3B82F6;
+    }
+    .cart-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    .cart-items {
+        flex-grow: 1;
+        overflow-y: auto;
+        max-height: calc(100vh - 400px);
+    }
+    .cart-summary {
+        border-top: 1px solid #E5E7EB;
+        padding-top: 10px;
+    }
+    .category-pills {
+        display: flex;
+        overflow-x: auto;
+        padding: 10px 0;
+        gap: 8px;
+        white-space: nowrap;
+    }
+    .category-pill {
+        padding: 6px 12px;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mx-auto px-4 py-4">
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold text-gray-800">Point of Sale (POS)</h1>
+        <div class="flex space-x-2">
+            <a href="{% url 'inventory:sale_list' %}" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md">
+                <i class="fas fa-list mr-2"></i> Daftar Penjualan
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+        <div class="{{ message.tags }} px-4 py-3 rounded relative{% if message.tags == 'success' %} bg-green-100 border border-green-400 text-green-700{% elif message.tags == 'error' %} bg-red-100 border border-red-400 text-red-700{% else %} bg-blue-100 border border-blue-400 text-blue-700{% endif %}" role="alert">
+            <span class="block sm:inline">{{ message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="pos-container grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Product Selection Section -->
+        <div class="md:col-span-2 bg-white shadow-md rounded-md overflow-hidden">
+            <div class="p-4 border-b">
+                <div class="flex items-center mb-4">
+                    <div class="flex-grow">
+                        <input type="text" id="searchProduct" class="border border-gray-300 rounded-md w-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Cari produk (nama atau barcode)...">
+                    </div>
+                    <div class="ml-2">
+                        <button id="scanBarcodeBtn" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md">
+                            <i class="fas fa-barcode mr-2"></i> Scan
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="category-pills">
+                    <div class="category-pill bg-blue-100 text-blue-800 border border-blue-200" data-category="all">Semua</div>
+                    {% for category in categories %}
+                    <div class="category-pill bg-gray-100 text-gray-800 border border-gray-200" data-category="{{ category.id }}">{{ category.name }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="product-grid" id="productGrid">
+                {% for product in products %}
+                <div class="product-card" data-product-id="{{ product.id }}" data-product-name="{{ product.name }}" data-product-price="{{ product.selling_price }}" data-product-stock="{{ product.stock }}" data-product-unit="{{ product.unit }}" data-category-id="{{ product.category.id }}">
+                    <div class="text-center mb-2">
+                        {% if product.image %}
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}" class="h-20 w-20 object-contain mx-auto">
+                        {% else %}
+                        <div class="h-20 w-20 bg-gray-200 flex items-center justify-center mx-auto rounded">
+                            <i class="fas fa-box text-gray-400 text-2xl"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="text-center">
+                        <h3 class="font-medium text-gray-900 truncate">{{ product.name }}</h3>
+                        <p class="text-sm text-gray-500 truncate">{{ product.barcode }}</p>
+                        <p class="text-sm font-bold text-blue-600">Rp {{ product.selling_price|floatformat:0 }}</p>
+                        <p class="text-xs text-gray-500">Stok: {{ product.stock }} {{ product.unit }}</p>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-span-full text-center py-8 text-gray-500">
+                    <i class="fas fa-box-open text-4xl mb-2"></i>
+                    <p>Tidak ada produk yang tersedia.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Cart Section -->
+        <div class="md:col-span-1">
+            <div class="cart-container bg-white shadow-md rounded-md overflow-hidden h-full">
+                <div class="p-4 border-b">
+                    <h2 class="text-lg font-semibold text-gray-800">Keranjang Belanja</h2>
+                </div>
+                
+                <div class="p-4 border-b">
+                    <label for="customerSelect" class="block text-sm font-medium text-gray-700 mb-1">Pelanggan</label>
+                    <select id="customerSelect" class="customer-select border border-gray-300 rounded-md w-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">-- Pelanggan Umum --</option>
+                        {% for customer in customers %}
+                        <option value="{{ customer.id }}">{{ customer.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="cart-items p-4" id="cartItems">
+                    <div class="text-center py-8 text-gray-500" id="emptyCartMessage">
+                        <i class="fas fa-shopping-cart text-4xl mb-2"></i>
+                        <p>Keranjang belanja kosong.</p>
+                        <p class="text-sm">Tambahkan produk dengan mengklik pada produk di sebelah kiri.</p>
+                    </div>
+                    
+                    <div id="cartItemsList" class="hidden">
+                        <!-- Cart items will be added here dynamically -->
+                    </div>
+                </div>
+                
+                <div class="cart-summary p-4">
+                    <div class="mb-4">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-gray-600">Subtotal:</span>
+                            <span id="subtotalAmount">Rp 0</span>
+                        </div>
+                        <div class="flex justify-between mb-2">
+                            <span class="text-gray-600">Diskon:</span>
+                            <div class="flex items-center">
+                                <span>Rp</span>
+                                <input type="number" id="discountAmount" class="border border-gray-300 rounded-md w-20 px-2 py-1 ml-1 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent" value="0" min="0">
+                            </div>
+                        </div>
+                        <div class="flex justify-between mb-2">
+                            <span class="text-gray-600">Pajak (%):</span>
+                            <div class="flex items-center">
+                                <input type="number" id="taxPercent" class="border border-gray-300 rounded-md w-16 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent" value="0" min="0" max="100" step="0.1">
+                                <span class="ml-1">%</span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between mb-2">
+                            <span class="text-gray-600">Nilai Pajak:</span>
+                            <span id="taxAmount">Rp 0</span>
+                        </div>
+                        <div class="flex justify-between mb-2 text-lg font-bold">
+                            <span>Total:</span>
+                            <span id="totalAmount">Rp 0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="paymentMethod" class="block text-sm font-medium text-gray-700 mb-1">Metode Pembayaran</label>
+                        <select id="paymentMethod" class="border border-gray-300 rounded-md w-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="CASH">Tunai</option>
+                            <option value="TRANSFER">Transfer Bank</option>
+                            <option value="QRIS">QRIS</option>
+                            <option value="CREDIT">Kredit</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="amountPaid" class="block text-sm font-medium text-gray-700 mb-1">Jumlah Dibayar</label>
+                        <div class="flex">
+                            <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500">Rp</span>
+                            <input type="number" id="amountPaid" class="border border-gray-300 rounded-r-md w-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="0" min="0">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="flex justify-between font-bold">
+                            <span id="changeLabel">Kembalian:</span>
+                            <span id="changeAmount">Rp 0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="saleNotes" class="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
+                        <textarea id="saleNotes" rows="2" class="border border-gray-300 rounded-md w-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="clearCartBtn" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md">
+                            <i class="fas fa-trash mr-2"></i> Bersihkan
+                        </button>
+                        <button id="processPaymentBtn" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md">
+                            <i class="fas fa-check mr-2"></i> Proses
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Barcode Scanner Modal -->
+<div id="barcodeScannerModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div class="p-4 border-b">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-800">Scan Barcode</h3>
+                <button id="closeScannerBtn" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="p-4">
+            <div class="mb-4">
+                <label for="barcodeInput" class="block text-sm font-medium text-gray-700 mb-1">Masukkan Barcode</label>
+                <div class="flex">
+                    <input type="text" id="barcodeInput" class="border border-gray-300 rounded-l-md w-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Scan atau ketik barcode..." autofocus>
+                    <button id="searchBarcodeBtn" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-r-md">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="barcodeResult" class="hidden">
+                <div class="p-4 border rounded-md">
+                    <div id="barcodeProductInfo"></div>
+                    <div class="mt-4">
+                        <label for="barcodeQuantity" class="block text-sm font-medium text-gray-700 mb-1">Jumlah</label>
+                        <input type="number" id="barcodeQuantity" class="border border-gray-300 rounded-md w-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="1" min="1">
+                    </div>
+                </div>
+            </div>
+            <div id="barcodeNotFound" class="hidden">
+                <div class="p-4 bg-red-50 text-red-700 border border-red-200 rounded-md">
+                    <p>Produk dengan barcode tersebut tidak ditemukan.</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-4 border-t">
+            <div class="flex justify-end space-x-2">
+                <button id="cancelBarcodeBtn" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md">
+                    Batal
+                </button>
+                <button id="addBarcodeItemBtn" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md hidden">
+                    Tambahkan ke Keranjang
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Confirmation Modal -->
+<div id="paymentModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div class="p-4 border-b">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-800">Konfirmasi Pembayaran</h3>
+                <button id="closePaymentBtn" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="p-4">
+            <div class="mb-4">
+                <h4 class="font-medium text-gray-700 mb-2">Ringkasan Transaksi</h4>
+                <div class="border rounded-md p-4">
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-600">Total Item:</span>
+                        <span id="modalTotalItems">0 item</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-600">Subtotal:</span>
+                        <span id="modalSubtotal">Rp 0</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-600">Diskon:</span>
+                        <span id="modalDiscount">Rp 0</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-600">Pajak:</span>
+                        <span id="modalTax">Rp 0</span>
+                    </div>
+                    <div class="flex justify-between font-bold">
+                        <span>Total:</span>
+                        <span id="modalTotal">Rp 0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <h4 class="font-medium text-gray-700 mb-2">Informasi Pembayaran</h4>
+                <div class="border rounded-md p-4">
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-600">Metode Pembayaran:</span>
+                        <span id="modalPaymentMethod">Tunai</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-600">Jumlah Dibayar:</span>
+                        <span id="modalAmountPaid">Rp 0</span>
+                    </div>
+                    <div class="flex justify-between font-bold">
+                        <span id="modalChangeLabel">Kembalian:</span>
+                        <span id="modalChange">Rp 0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="paymentStatusSection" class="mb-4">
+                <h4 class="font-medium text-gray-700 mb-2">Status Pembayaran</h4>
+                <div class="border rounded-md p-4">
+                    <div class="flex items-center">
+                        <span id="paymentStatusIcon" class="mr-2"><i class="fas fa-check-circle text-green-500"></i></span>
+                        <span id="paymentStatusText" class="font-medium">Lunas</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="p-4 border-t">
+            <div class="flex justify-end space-x-2">
+                <button id="cancelPaymentBtn" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md">
+                    Batal
+                </button>
+                <button id="confirmPaymentBtn" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md">
+                    Konfirmasi & Cetak
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cart Item Template -->
+<template id="cartItemTemplate">
+    <div class="cart-item border-b pb-3 mb-3" data-product-id="">
+        <div class="flex justify-between mb-1">
+            <h4 class="font-medium text-gray-900 product-name"></h4>
+            <button class="remove-item text-red-500 hover:text-red-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <button class="decrease-qty bg-gray-200 hover:bg-gray-300 rounded-l px-2 py-1">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <input type="number" class="item-qty border-t border-b border-gray-300 w-12 py-1 text-center" value="1" min="1">
+                <button class="increase-qty bg-gray-200 hover:bg-gray-300 rounded-r px-2 py-1">
+                    <i class="fas fa-plus"></i>
+                </button>
+                <span class="ml-2 text-gray-500 product-unit"></span>
+            </div>
+            <div class="text-right">
+                <div class="text-gray-500"><span class="item-price"></span> x <span class="item-qty-text">1</span></div>
+                <div class="font-medium text-gray-900 item-subtotal"></div>
+            </div>
+        </div>
+    </div>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Select2 for customer select
+        $('.customer-select').select2({
+            placeholder: "-- Pelanggan Umum --",
+            allowClear: true
+        });
+        
+        // Variables
+        const cart = [];
+        let subtotal = 0;
+        let discount = 0;
+        let taxPercent = 0;
+        let taxAmount = 0;
+        let total = 0;
+        
+        // DOM Elements
+        const productGrid = document.getElementById('productGrid');
+        const cartItems = document.getElementById('cartItems');
+        const cartItemsList = document.getElementById('cartItemsList');
+        const emptyCartMessage = document.getElementById('emptyCartMessage');
+        const subtotalAmount = document.getElementById('subtotalAmount');
+        const discountAmountInput = document.getElementById('discountAmount');
+        const taxPercentInput = document.getElementById('taxPercent');
+        const taxAmountEl = document.getElementById('taxAmount');
+        const totalAmountEl = document.getElementById('totalAmount');
+        const amountPaidInput = document.getElementById('amountPaid');
+        const changeAmountEl = document.getElementById('changeAmount');
+        const changeLabel = document.getElementById('changeLabel');
+        const clearCartBtn = document.getElementById('clearCartBtn');
+        const processPaymentBtn = document.getElementById('processPaymentBtn');
+        const searchProductInput = document.getElementById('searchProduct');
+        const categoryPills = document.querySelectorAll('.category-pill');
+        
+        // Barcode Scanner Modal Elements
+        const scanBarcodeBtn = document.getElementById('scanBarcodeBtn');
+        const barcodeScannerModal = document.getElementById('barcodeScannerModal');
+        const closeScannerBtn = document.getElementById('closeScannerBtn');
+        const barcodeInput = document.getElementById('barcodeInput');
+        const searchBarcodeBtn = document.getElementById('searchBarcodeBtn');
+        const barcodeResult = document.getElementById('barcodeResult');
+        const barcodeNotFound = document.getElementById('barcodeNotFound');
+        const barcodeProductInfo = document.getElementById('barcodeProductInfo');
+        const barcodeQuantity = document.getElementById('barcodeQuantity');
+        const addBarcodeItemBtn = document.getElementById('addBarcodeItemBtn');
+        const cancelBarcodeBtn = document.getElementById('cancelBarcodeBtn');
+        
+        // Payment Modal Elements
+        const paymentModal = document.getElementById('paymentModal');
+        const closePaymentBtn = document.getElementById('closePaymentBtn');
+        const modalTotalItems = document.getElementById('modalTotalItems');
+        const modalSubtotal = document.getElementById('modalSubtotal');
+        const modalDiscount = document.getElementById('modalDiscount');
+        const modalTax = document.getElementById('modalTax');
+        const modalTotal = document.getElementById('modalTotal');
+        const modalPaymentMethod = document.getElementById('modalPaymentMethod');
+        const modalAmountPaid = document.getElementById('modalAmountPaid');
+        const modalChangeLabel = document.getElementById('modalChangeLabel');
+        const modalChange = document.getElementById('modalChange');
+        const paymentStatusIcon = document.getElementById('paymentStatusIcon');
+        const paymentStatusText = document.getElementById('paymentStatusText');
+        const cancelPaymentBtn = document.getElementById('cancelPaymentBtn');
+        const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
+        
+        // Event Listeners
+        productGrid.addEventListener('click', handleProductClick);
+        cartItemsList.addEventListener('click', handleCartAction);
+        cartItemsList.addEventListener('change', handleQuantityChange);
+        discountAmountInput.addEventListener('change', calculateTotals);
+        taxPercentInput.addEventListener('change', calculateTotals);
+        amountPaidInput.addEventListener('input', calculateChange);
+        clearCartBtn.addEventListener('click', clearCart);
+        processPaymentBtn.addEventListener('click', showPaymentModal);
+        searchProductInput.addEventListener('input', filterProducts);
+        
+        // Category filter
+        categoryPills.forEach(pill => {
+            pill.addEventListener('click', function() {
+                // Remove active class from all pills
+                categoryPills.forEach(p => {
+                    p.classList.remove('bg-blue-100', 'text-blue-800', 'border-blue-200');
+                    p.classList.add('bg-gray-100', 'text-gray-800', 'border-gray-200');
+                });
+                
+                // Add active class to clicked pill
+                this.classList.remove('bg-gray-100', 'text-gray-800', 'border-gray-200');
+                this.classList.add('bg-blue-100', 'text-blue-800', 'border-blue-200');
+                
+                // Filter products
+                const categoryId = this.dataset.category;
+                filterProductsByCategory(categoryId);
+            });
+        });
+        
+        // Barcode Scanner Modal
+        scanBarcodeBtn.addEventListener('click', openBarcodeScanner);
+        closeScannerBtn.addEventListener('click', closeBarcodeScanner);
+        searchBarcodeBtn.addEventListener('click', searchBarcode);
+        barcodeInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchBarcode();
+            }
+        });
+        addBarcodeItemBtn.addEventListener('click', addBarcodeItemToCart);
+        cancelBarcodeBtn.addEventListener('click', closeBarcodeScanner);
+        
+        // Payment Modal
+        closePaymentBtn.addEventListener('click', closePaymentModal);
+        cancelPaymentBtn.addEventListener('click', closePaymentModal);
+        confirmPaymentBtn.addEventListener('click', processPayment);
+        
+        // Functions
+        function handleProductClick(e) {
+            const productCard = e.target.closest('.product-card');
+            if (!productCard) return;
+            
+            const productId = productCard.dataset.productId;
+            const productName = productCard.dataset.productName;
+            const productPrice = parseFloat(productCard.dataset.productPrice);
+            const productStock = parseFloat(productCard.dataset.productStock);
+            const productUnit = productCard.dataset.productUnit;
+            
+            // Check if product is already in cart
+            const existingItem = cart.find(item => item.id === productId);
+            
+            if (existingItem) {
+                // Check stock
+                if (existingItem.quantity < productStock) {
+                    existingItem.quantity += 1;
+                    updateCartItemUI(existingItem);
+                } else {
+                    alert(`Stok tidak mencukupi. Stok tersedia: ${productStock} ${productUnit}`);
+                    return;
+                }
+            } else {
+                // Check stock
+                if (productStock <= 0) {
+                    alert(`Stok tidak mencukupi. Stok tersedia: ${productStock} ${productUnit}`);
+                    return;
+                }
+                
+                // Add new item to cart
+                const newItem = {
+                    id: productId,
+                    name: productName,
+                    price: productPrice,
+                    quantity: 1,
+                    stock: productStock,
+                    unit: productUnit,
+                    subtotal: productPrice
+                };
+                
+                cart.push(newItem);
+                addCartItemUI(newItem);
+            }
+            
+            updateCartVisibility();
+            calculateTotals();
+        }
+        
+        function addCartItemUI(item) {
+            const template = document.getElementById('cartItemTemplate');
+            const clone = document.importNode(template.content, true);
+            
+            const cartItem = clone.querySelector('.cart-item');
+            cartItem.dataset.productId = item.id;
+            
+            const productName = clone.querySelector('.product-name');
+            productName.textContent = item.name;
+            
+            const productUnit = clone.querySelector('.product-unit');
+            productUnit.textContent = item.unit;
+            
+            const itemQty = clone.querySelector('.item-qty');
+            itemQty.value = item.quantity;
+            itemQty.max = item.stock;
+            
+            const itemQtyText = clone.querySelector('.item-qty-text');
+            itemQtyText.textContent = item.quantity;
+            
+            const itemPrice = clone.querySelector('.item-price');
+            itemPrice.textContent = formatCurrency(item.price);
+            
+            const itemSubtotal = clone.querySelector('.item-subtotal');
+            itemSubtotal.textContent = formatCurrency(item.subtotal);
+            
+            cartItemsList.appendChild(clone);
+        }
+        
+        function updateCartItemUI(item) {
+            const cartItem = cartItemsList.querySelector(`.cart-item[data-product-id="${item.id}"]`);
+            if (!cartItem) return;
+            
+            const itemQty = cartItem.querySelector('.item-qty');
+            itemQty.value = item.quantity;
+            
+            const itemQtyText = cartItem.querySelector('.item-qty-text');
+            itemQtyText.textContent = item.quantity;
+            
+            item.subtotal = item.price * item.quantity;
+            
+            const itemSubtotal = cartItem.querySelector('.item-subtotal');
+            itemSubtotal.textContent = formatCurrency(item.subtotal);
+        }
+        
+        function handleCartAction(e) {
+            // Remove item
+            if (e.target.closest('.remove-item')) {
+                const cartItem = e.target.closest('.cart-item');
+                const productId = cartItem.dataset.productId;
+                
+                // Remove from cart array
+                const itemIndex = cart.findIndex(item => item.id === productId);
+                if (itemIndex !== -1) {
+                    cart.splice(itemIndex, 1);
+                }
+                
+                // Remove from UI
+                cartItem.remove();
+                
+                updateCartVisibility();
+                calculateTotals();
+            }
+            
+            // Decrease quantity
+            if (e.target.closest('.decrease-qty')) {
+                const cartItem = e.target.closest('.cart-item');
+                const productId = cartItem.dataset.productId;
+                const item = cart.find(item => item.id === productId);
+                
+                if (item && item.quantity > 1) {
+                    item.quantity -= 1;
+                    updateCartItemUI(item);
+                    calculateTotals();
+                }
+            }
+            
+            // Increase quantity
+            if (e.target.closest('.increase-qty')) {
+                const cartItem = e.target.closest('.cart-item');
+                const productId = cartItem.dataset.productId;
+                const item = cart.find(item => item.id === productId);
+                
+                if (item && item.quantity < item.stock) {
+                    item.quantity += 1;
+                    updateCartItemUI(item);
+                    calculateTotals();
+                } else if (item) {
+                    alert(`Stok tidak mencukupi. Stok tersedia: ${item.stock} ${item.unit}`);
+                }
+            }
+        }
+        
+        function handleQuantityChange(e) {
+            if (e.target.classList.contains('item-qty')) {
+                const cartItem = e.target.closest('.cart-item');
+                const productId = cartItem.dataset.productId;
+                const item = cart.find(item => item.id === productId);
+                
+                let newQty = parseInt(e.target.value);
+                
+                // Validate quantity
+                if (isNaN(newQty) || newQty < 1) {
+                    newQty = 1;
+                    e.target.value = 1;
+                } else if (newQty > item.stock) {
+                    newQty = item.stock;
+                    e.target.value = item.stock;
+                    alert(`Stok tidak mencukupi. Stok tersedia: ${item.stock} ${item.unit}`);
+                }
+                
+                item.quantity = newQty;
+                updateCartItemUI(item);
+                calculateTotals();
+            }
+        }
+        
+        function calculateTotals() {
+            // Calculate subtotal
+            subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0);
+            subtotalAmount.textContent = formatCurrency(subtotal);
+            
+            // Get discount
+            discount = parseFloat(discountAmountInput.value) || 0;
+            
+            // Calculate tax
+            taxPercent = parseFloat(taxPercentInput.value) || 0;
+            taxAmount = (subtotal - discount) * (taxPercent / 100);
+            taxAmountEl.textContent = formatCurrency(taxAmount);
+            
+            // Calculate total
+            total = subtotal - discount + taxAmount;
+            totalAmountEl.textContent = formatCurrency(total);
+            
+            // Update amount paid to match total for convenience
+            amountPaidInput.value = total.toFixed(0);
+            
+            // Calculate change
+            calculateChange();
+        }
+        
+        function calculateChange() {
+            const amountPaid = parseFloat(amountPaidInput.value) || 0;
+            const change = amountPaid - total;
+            
+            if (change >= 0) {
+                changeLabel.textContent = 'Kembalian:';
+                changeAmountEl.textContent = formatCurrency(change);
+                changeAmountEl.classList.remove('text-red-600');
+                changeAmountEl.classList.add('text-green-600');
+            } else {
+                changeLabel.textContent = 'Sisa:';
+                changeAmountEl.textContent = formatCurrency(Math.abs(change));
+                changeAmountEl.classList.remove('text-green-600');
+                changeAmountEl.classList.add('text-red-600');
+            }
+        }
+        
+        function updateCartVisibility() {
+            if (cart.length === 0) {
+                emptyCartMessage.classList.remove('hidden');
+                cartItemsList.classList.add('hidden');
+            } else {
+                emptyCartMessage.classList.add('hidden');
+                cartItemsList.classList.remove('hidden');
+            }
+        }
+        
+        function clearCart() {
+            if (cart.length === 0) return;
+            
+            if (confirm('Apakah Anda yakin ingin mengosongkan keranjang belanja?')) {
+                cart.length = 0;
+                cartItemsList.innerHTML = '';
+                updateCartVisibility();
+                calculateTotals();
+            }
+        }
+        
+        function filterProducts() {
+            const searchTerm = searchProductInput.value.toLowerCase();
+            const productCards = productGrid.querySelectorAll('.product-card');
+            
+            productCards.forEach(card => {
+                const productName = card.dataset.productName.toLowerCase();
+                const productBarcode = card.querySelector('.text-sm.text-gray-500').textContent.toLowerCase();
+                
+                if (productName.includes(searchTerm) || productBarcode.includes(searchTerm)) {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+        
+        function filterProductsByCategory(categoryId) {
+            const productCards = productGrid.querySelectorAll('.product-card');
+            
+            productCards.forEach(card => {
+                if (categoryId === 'all' || card.dataset.categoryId === categoryId) {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+        
+        function formatCurrency(amount) {
+            return 'Rp ' + amount.toLocaleString('id-ID');
+        }
+        
+        // Barcode Scanner Functions
+        function openBarcodeScanner() {
+            barcodeScannerModal.classList.remove('hidden');
+            barcodeInput.value = '';
+            barcodeResult.classList.add('hidden');
+            barcodeNotFound.classList.add('hidden');
+            addBarcodeItemBtn.classList.add('hidden');
+            setTimeout(() => barcodeInput.focus(), 100);
+        }
+        
+        function closeBarcodeScanner() {
+            barcodeScannerModal.classList.add('hidden');
+        }
+        
+        function searchBarcode() {
+            const barcode = barcodeInput.value.trim();
+            if (!barcode) return;
+            
+            // Search for product with this barcode
+            fetch(`{% url 'inventory:api_scan_barcode' %}?barcode=${barcode}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.found) {
+                        // Product found
+                        barcodeResult.classList.remove('hidden');
+                        barcodeNotFound.classList.add('hidden');
+                        addBarcodeItemBtn.classList.remove('hidden');
+                        
+                        // Display product info
+                        barcodeProductInfo.innerHTML = `
+                            <h4 class="font-medium text-gray-900">${data.product.name}</h4>
+                            <p class="text-sm text-gray-500">${data.product.barcode}</p>
+                            <p class="text-sm font-bold text-blue-600">${formatCurrency(data.product.selling_price)}</p>
+                            <p class="text-xs text-gray-500">Stok: ${data.product.stock} ${data.product.unit}</p>
+                        `;
+                        
+                        // Store product data for adding to cart
+                        barcodeResult.dataset.productId = data.product.id;
+                        barcodeResult.dataset.productName = data.product.name;
+                        barcodeResult.dataset.productPrice = data.product.selling_price;
+                        barcodeResult.dataset.productStock = data.product.stock;
+                        barcodeResult.dataset.productUnit = data.product.unit;
+                        
+                        // Reset quantity
+                        barcodeQuantity.value = 1;
+                        barcodeQuantity.max = data.product.stock;
+                    } else {
+                        // Product not found
+                        barcodeResult.classList.add('hidden');
+                        barcodeNotFound.classList.remove('hidden');
+                        addBarcodeItemBtn.classList.add('hidden');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error searching barcode:', error);
+                    barcodeResult.classList.add('hidden');
+                    barcodeNotFound.classList.remove('hidden');
+                    addBarcodeItemBtn.classList.add('hidden');
+                });
+        }
+        
+        function addBarcodeItemToCart() {
+            const productId = barcodeResult.dataset.productId;
+            const productName = barcodeResult.dataset.productName;
+            const productPrice = parseFloat(barcodeResult.dataset.productPrice);
+            const productStock = parseFloat(barcodeResult.dataset.productStock);
+            const productUnit = barcodeResult.dataset.productUnit;
+            const quantity = parseInt(barcodeQuantity.value) || 1;
+            
+            // Check if product is already in cart
+            const existingItem = cart.find(item => item.id === productId);
+            
+            if (existingItem) {
+                // Check stock
+                if (existingItem.quantity + quantity <= productStock) {
+                    existingItem.quantity += quantity;
+                    updateCartItemUI(existingItem);
+                } else {
+                    alert(`Stok tidak mencukupi. Stok tersedia: ${productStock} ${productUnit}`);
+                    return;
+                }
+            } else {
+                // Check stock
+                if (quantity <= productStock) {
+                    // Add new item to cart
+                    const newItem = {
+                        id: productId,
+                        name: productName,
+                        price: productPrice,
+                        quantity: quantity,
+                        stock: productStock,
+                        unit: productUnit,
+                        subtotal: productPrice * quantity
+                    };
+                    
+                    cart.push(newItem);
+                    addCartItemUI(newItem);
+                } else {
+                    alert(`Stok tidak mencukupi. Stok tersedia: ${productStock} ${productUnit}`);
+                    return;
+                }
+            }
+            
+            updateCartVisibility();
+            calculateTotals();
+            closeBarcodeScanner();
+        }
+        
+        // Payment Modal Functions
+        function showPaymentModal() {
+            if (cart.length === 0) {
+                alert('Keranjang belanja kosong. Tambahkan produk terlebih dahulu.');
+                return;
+            }
+            
+            // Update payment modal with current values
+            modalTotalItems.textContent = `${cart.length} item`;
+            modalSubtotal.textContent = formatCurrency(subtotal);
+            modalDiscount.textContent = formatCurrency(discount);
+            modalTax.textContent = formatCurrency(taxAmount);
+            modalTotal.textContent = formatCurrency(total);
+            
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            switch (paymentMethod) {
+                case 'CASH':
+                    modalPaymentMethod.textContent = 'Tunai';
+                    break;
+                case 'TRANSFER':
+                    modalPaymentMethod.textContent = 'Transfer Bank';
+                    break;
+                case 'QRIS':
+                    modalPaymentMethod.textContent = 'QRIS';
+                    break;
+                case 'CREDIT':
+                    modalPaymentMethod.textContent = 'Kredit';
+                    break;
+                default:
+                    modalPaymentMethod.textContent = 'Tunai';
+            }
+            
+            const amountPaid = parseFloat(amountPaidInput.value) || 0;
+            modalAmountPaid.textContent = formatCurrency(amountPaid);
+            
+            const change = amountPaid - total;
+            if (change >= 0) {
+                modalChangeLabel.textContent = 'Kembalian:';
+                modalChange.textContent = formatCurrency(change);
+                modalChange.classList.remove('text-red-600');
+                modalChange.classList.add('text-green-600');
+                
+                // Update payment status
+                paymentStatusIcon.innerHTML = '<i class="fas fa-check-circle text-green-500"></i>';
+                paymentStatusText.textContent = 'Lunas';
+                paymentStatusText.className = 'font-medium text-green-600';
+            } else {
+                modalChangeLabel.textContent = 'Sisa:';
+                modalChange.textContent = formatCurrency(Math.abs(change));
+                modalChange.classList.remove('text-green-600');
+                modalChange.classList.add('text-red-600');
+                
+                // Update payment status
+                if (amountPaid > 0) {
+                    paymentStatusIcon.innerHTML = '<i class="fas fa-exclamation-circle text-yellow-500"></i>';
+                    paymentStatusText.textContent = 'Sebagian';
+                    paymentStatusText.className = 'font-medium text-yellow-600';
+                } else {
+                    paymentStatusIcon.innerHTML = '<i class="fas fa-times-circle text-red-500"></i>';
+                    paymentStatusText.textContent = 'Belum Dibayar';
+                    paymentStatusText.className = 'font-medium text-red-600';
+                }
+            }
+            
+            paymentModal.classList.remove('hidden');
+        }
+        
+        function closePaymentModal() {
+            paymentModal.classList.add('hidden');
+        }
+        
+        function processPayment() {
+            // Prepare sale data
+            const saleData = {
+                customer: document.getElementById('customerSelect').value,
+                payment_method: document.getElementById('paymentMethod').value,
+                subtotal: subtotal,
+                discount: discount,
+                tax_percent: taxPercent,
+                tax_amount: taxAmount,
+                total_amount: total,
+                amount_paid: parseFloat(amountPaidInput.value) || 0,
+                notes: document.getElementById('saleNotes').value,
+                items: cart.map(item => ({
+                    product: item.id,
+                    quantity: item.quantity,
+                    price: item.price,
+                    discount: 0, // Individual item discount not implemented in this UI
+                    subtotal: item.subtotal
+                }))
+            };
+            
+            // Send data to server
+            fetch('{% url "inventory:pos" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(saleData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Redirect to invoice
+                    window.location.href = data.invoice_url;
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error processing payment:', error);
+                alert('Terjadi kesalahan saat memproses pembayaran. Silakan coba lagi.');
+            });
+        }
+        
+        // Helper function to get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
+{% endblock %}

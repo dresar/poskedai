@@ -1,0 +1,107 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Profil - POS Kedai{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Profil Pengguna</h1>
+        <a href="{% url 'core:edit_profile' %}" class="bg-primary hover:bg-blue-600 text-white py-2 px-4 rounded-md">
+            Edit Profil
+        </a>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <!-- Profile Header -->
+        <div class="bg-primary p-6 text-white">
+            <div class="flex items-center">
+                {% if user.profile_picture %}
+                <img src="{{ user.profile_picture.url }}" alt="{{ user.get_full_name }}" class="w-20 h-20 rounded-full object-cover border-2 border-white">
+                {% else %}
+                <div class="w-20 h-20 rounded-full bg-blue-400 flex items-center justify-center text-white text-2xl font-bold">
+                    {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+                </div>
+                {% endif %}
+                <div class="ml-4">
+                    <h2 class="text-xl font-bold">{{ user.get_full_name|default:user.email }}</h2>
+                    <p class="text-blue-100">{{ user.get_role_display }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Profile Details -->
+        <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Personal Information -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Informasi Pribadi</h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <p class="text-sm text-gray-500">Nama Depan</p>
+                            <p class="text-gray-800">{{ user.first_name|default:"-" }}</p>
+                        </div>
+                        
+                        <div>
+                            <p class="text-sm text-gray-500">Nama Belakang</p>
+                            <p class="text-gray-800">{{ user.last_name|default:"-" }}</p>
+                        </div>
+                        
+                        <div>
+                            <p class="text-sm text-gray-500">Email</p>
+                            <p class="text-gray-800">{{ user.email }}</p>
+                        </div>
+                        
+                        <div>
+                            <p class="text-sm text-gray-500">Nomor Telepon</p>
+                            <p class="text-gray-800">{{ user.phone_number|default:"-" }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Additional Information -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Informasi Tambahan</h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <p class="text-sm text-gray-500">Alamat</p>
+                            <p class="text-gray-800">{{ user.address|default:"-" }}</p>
+                        </div>
+                        
+                        <div>
+                            <p class="text-sm text-gray-500">Peran</p>
+                            <p class="text-gray-800">{{ user.get_role_display }}</p>
+                        </div>
+                        
+                        <div>
+                            <p class="text-sm text-gray-500">Tanggal Bergabung</p>
+                            <p class="text-gray-800">{{ user.date_joined|date:"j F Y" }}</p>
+                        </div>
+                        
+                        <div>
+                            <p class="text-sm text-gray-500">Terakhir Login</p>
+                            <p class="text-gray-800">{{ user.last_login|date:"j F Y H:i" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Security Section -->
+            <div class="mt-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Keamanan</h3>
+                
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-800">Password</p>
+                        <p class="text-sm text-gray-500">Terakhir diubah: -</p>
+                    </div>
+                    <a href="{% url 'core:change_password' %}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-md">
+                        Ubah Password
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

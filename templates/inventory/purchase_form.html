@@ -1,0 +1,285 @@
+{% extends 'base/base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">{{ title }}</h1>
+        <a href="{% url 'inventory:purchase_list' %}" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md">
+            <i class="fas fa-arrow-left mr-2"></i> Kembali
+        </a>
+    </div>
+
+    <div class="bg-white shadow-md rounded-md p-6">
+        <form method="post" id="purchaseForm">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="mb-4">
+                    <label for="{{ form.supplier.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
+                    {{ form.supplier }}
+                    {% if form.supplier.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ form.supplier.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="{{ form.invoice_number.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Nomor Invoice</label>
+                    {{ form.invoice_number }}
+                    {% if form.invoice_number.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ form.invoice_number.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="{{ form.invoice_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Tanggal Invoice</label>
+                    {{ form.invoice_date }}
+                    {% if form.invoice_date.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ form.invoice_date.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="{{ form.status.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    {{ form.status }}
+                    {% if form.status.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ form.status.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4 md:col-span-2">
+                    <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}
+                    <p class="text-red-500 text-xs mt-1">{{ form.notes.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">Item Pembelian</h2>
+            
+            <div class="mb-6">
+                <div class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2 mb-4">
+                    <select id="product-select" class="border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent flex-grow">
+                        <option value="">Pilih Produk</option>
+                        {% for product in products %}
+                        <option value="{{ product.id }}" data-name="{{ product.name }}" data-price="{{ product.purchase_price }}" data-unit="{{ product.unit }}">{{ product.name }} - {{ product.barcode }}</option>
+                        {% endfor %}
+                    </select>
+                    
+                    <button type="button" id="add-item" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md">
+                        <i class="fas fa-plus mr-2"></i> Tambah Item
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200" id="items-table">
+                        <thead>
+                            <tr>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produk</th>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Satuan</th>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Harga</th>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subtotal</th>
+                                <th class="px-6 py-3 bg-gray-50 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200" id="purchase-items">
+                            {% if formset %}
+                                {% for item_form in formset %}
+                                <tr class="item-row">
+                                    <td class="px-6 py-4">
+                                        {{ item_form.id }}
+                                        {{ item_form.product }}
+                                        {% if item_form.product.errors %}
+                                        <p class="text-red-500 text-xs mt-1">{{ item_form.product.errors.0 }}</p>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        {{ item_form.quantity }}
+                                        {% if item_form.quantity.errors %}
+                                        <p class="text-red-500 text-xs mt-1">{{ item_form.quantity.errors.0 }}</p>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-6 py-4 unit-cell">
+                                        {{ item_form.instance.product.unit }}
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        {{ item_form.price }}
+                                        {% if item_form.price.errors %}
+                                        <p class="text-red-500 text-xs mt-1">{{ item_form.price.errors.0 }}</p>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-6 py-4 subtotal-cell">
+                                        {{ item_form.instance.get_subtotal }}
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <button type="button" class="text-red-600 hover:text-red-900 remove-item">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {{ item_form.DELETE }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% endif %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="4" class="px-6 py-4 text-right font-medium">Total:</td>
+                                <td class="px-6 py-4 font-bold" id="total-amount">Rp 0</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                
+                {{ formset.management_form }}
+            </div>
+            
+            <div class="flex justify-end mt-6">
+                <button type="submit" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md">
+                    Simpan Pembelian
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const addItemBtn = document.getElementById('add-item');
+        const productSelect = document.getElementById('product-select');
+        const purchaseItems = document.getElementById('purchase-items');
+        const totalAmount = document.getElementById('total-amount');
+        const managementForm = document.querySelector('#purchaseForm [name$="-TOTAL_FORMS"]');
+        
+        let itemCount = parseInt(managementForm.value);
+        
+        // Calculate initial total
+        calculateTotal();
+        
+        // Add new item
+        addItemBtn.addEventListener('click', function() {
+            const productId = productSelect.value;
+            if (!productId) return;
+            
+            const option = productSelect.options[productSelect.selectedIndex];
+            const productName = option.dataset.name;
+            const productPrice = option.dataset.price;
+            const productUnit = option.dataset.unit;
+            
+            const row = document.createElement('tr');
+            row.className = 'item-row';
+            
+            row.innerHTML = `
+                <td class="px-6 py-4">
+                    <input type="hidden" name="items-${itemCount}-product" value="${productId}">
+                    <input type="hidden" name="items-${itemCount}-id" value="">
+                    <div class="text-sm font-medium text-gray-900">${productName}</div>
+                </td>
+                <td class="px-6 py-4">
+                    <input type="number" name="items-${itemCount}-quantity" value="1" min="1" class="border border-gray-300 rounded-md px-3 py-1 w-20 quantity-input">
+                </td>
+                <td class="px-6 py-4 unit-cell">
+                    ${productUnit}
+                </td>
+                <td class="px-6 py-4">
+                    <input type="number" name="items-${itemCount}-price" value="${productPrice}" min="0" class="border border-gray-300 rounded-md px-3 py-1 w-32 price-input">
+                </td>
+                <td class="px-6 py-4 subtotal-cell">
+                    ${(productPrice * 1).toLocaleString('id-ID', {style: 'currency', currency: 'IDR'})}
+                </td>
+                <td class="px-6 py-4 text-right">
+                    <button type="button" class="text-red-600 hover:text-red-900 remove-item">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <input type="checkbox" name="items-${itemCount}-DELETE" class="hidden delete-checkbox">
+                </td>
+            `;
+            
+            purchaseItems.appendChild(row);
+            
+            // Update form count
+            itemCount++;
+            managementForm.value = itemCount;
+            
+            // Reset product select
+            productSelect.value = '';
+            
+            // Recalculate total
+            calculateTotal();
+            
+            // Add event listeners to new inputs
+            addInputListeners(row);
+        });
+        
+        // Remove item
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-item') || e.target.parentElement.classList.contains('remove-item')) {
+                const row = e.target.closest('.item-row');
+                const deleteCheckbox = row.querySelector('.delete-checkbox');
+                
+                if (deleteCheckbox) {
+                    deleteCheckbox.checked = true;
+                    row.style.display = 'none';
+                } else {
+                    row.remove();
+                }
+                
+                calculateTotal();
+            }
+        });
+        
+        // Add listeners to existing rows
+        document.querySelectorAll('.item-row').forEach(row => {
+            addInputListeners(row);
+        });
+        
+        function addInputListeners(row) {
+            const quantityInput = row.querySelector('.quantity-input');
+            const priceInput = row.querySelector('.price-input');
+            
+            if (quantityInput) {
+                quantityInput.addEventListener('input', function() {
+                    updateSubtotal(row);
+                    calculateTotal();
+                });
+            }
+            
+            if (priceInput) {
+                priceInput.addEventListener('input', function() {
+                    updateSubtotal(row);
+                    calculateTotal();
+                });
+            }
+        }
+        
+        function updateSubtotal(row) {
+            const quantity = parseFloat(row.querySelector('.quantity-input').value) || 0;
+            const price = parseFloat(row.querySelector('.price-input').value) || 0;
+            const subtotal = quantity * price;
+            
+            row.querySelector('.subtotal-cell').textContent = subtotal.toLocaleString('id-ID', {style: 'currency', currency: 'IDR'});
+        }
+        
+        function calculateTotal() {
+            let total = 0;
+            const visibleRows = Array.from(document.querySelectorAll('.item-row')).filter(row => row.style.display !== 'none');
+            
+            visibleRows.forEach(row => {
+                const quantityInput = row.querySelector('.quantity-input');
+                const priceInput = row.querySelector('.price-input');
+                
+                if (quantityInput && priceInput) {
+                    const quantity = parseFloat(quantityInput.value) || 0;
+                    const price = parseFloat(priceInput.value) || 0;
+                    total += quantity * price;
+                }
+            });
+            
+            totalAmount.textContent = total.toLocaleString('id-ID', {style: 'currency', currency: 'IDR'});
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Hapus Kategori{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold text-gray-800">Konfirmasi Penghapusan</h1>
+        <div>
+            <a href="{% url 'inventory:category_detail' object.id %}" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md">
+                <i class="fas fa-arrow-left mr-2"></i> Kembali
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white shadow-md rounded-md overflow-hidden">
+        <div class="p-6">
+            <div class="mb-6">
+                <div class="flex items-center justify-center mb-4 text-red-600">
+                    <i class="fas fa-exclamation-triangle text-5xl"></i>
+                </div>
+                <h2 class="text-xl font-bold text-center mb-2">Apakah Anda yakin ingin menghapus kategori ini?</h2>
+                <p class="text-center text-gray-600 mb-4">Tindakan ini tidak dapat dibatalkan.</p>
+            </div>
+
+            <div class="bg-gray-100 rounded-md p-4 mb-6">
+                <h3 class="font-semibold mb-2">Detail Kategori:</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Nama Kategori</p>
+                        <p class="font-medium">{{ object.name }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Deskripsi</p>
+                        <p class="font-medium">{{ object.description|default:"-" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Dibuat Pada</p>
+                        <p class="font-medium">{{ object.created_at|date:"d F Y H:i" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Jumlah Produk</p>
+                        <p class="font-medium">{{ product_count }}</p>
+                    </div>
+                </div>
+            </div>
+
+            {% if product_count > 0 %}
+            <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-circle text-red-500"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-red-700">
+                            <strong>Perhatian:</strong> Kategori ini memiliki {{ product_count }} produk terkait. Jika Anda menghapus kategori ini:
+                        </p>
+                        <ul class="list-disc list-inside text-sm text-red-700 mt-2">
+                            <li>Semua produk dalam kategori ini akan diatur ke "Tanpa Kategori"</li>
+                            <li>Anda perlu mengatur ulang kategori untuk produk-produk tersebut secara manual</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <form method="post" class="flex justify-end space-x-4">
+                {% csrf_token %}
+                <a href="{% url 'inventory:category_detail' object.id %}" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md">
+                    <i class="fas fa-times mr-2"></i> Batal
+                </a>
+                <button type="submit" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md">
+                    <i class="fas fa-trash mr-2"></i> Hapus
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
